@@ -2,8 +2,33 @@ import { useEffect, useState } from 'react';
 import { TrendingUp, BarChart3, PieChart, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
+// Define types for your Supabase query results
+interface Crop {
+  area_hectares: number;
+}
+
+interface InventoryItem {
+  quantity_kg: number;
+}
+
+interface Warehouse {
+  capacity_tonnes: number;
+  current_utilization_tonnes: number;
+}
+
+interface Price {
+  price_per_kg: number;
+}
+
+interface Metrics {
+  totalProduction: number;
+  totalProcurement: number;
+  averagePrice: number;
+  utilizationRate: number;
+}
+
 export default function AnalyticsView() {
-  const [metrics, setMetrics] = useState({
+  const [metrics, setMetrics] = useState<Metrics>({
     totalProduction: 0,
     totalProcurement: 0,
     averagePrice: 0,
@@ -18,22 +43,22 @@ export default function AnalyticsView() {
   const loadAnalytics = async () => {
     try {
       const [cropsResult, inventoryResult, warehousesResult, pricesResult] = await Promise.all([
-        supabase.from('crops').select('area_hectares'),
-        supabase.from('inventory').select('quantity_kg'),
-        supabase.from('warehouses').select('capacity_tonnes, current_utilization_tonnes'),
-        supabase.from('market_prices').select('price_per_kg').eq('is_prediction', false).limit(100),
+        supabase.from<Crop>('crops').select('area_hectares'),
+        supabase.from<InventoryItem>('inventory').select('quantity_kg'),
+        supabase.from<Warehouse>('warehouses').select('capacity_tonnes, current_utilization_tonnes'),
+        supabase.from<Price>('market_prices').select('price_per_kg').eq('is_prediction', false).limit(100),
       ]);
 
-      const totalArea = cropsResult.data?.reduce((sum, crop) => sum + crop.area_hectares, 0) || 0;
-      const totalInventory = inventoryResult.data?.reduce((sum, item) => sum + item.quantity_kg, 0) || 0;
+      const totalArea = cropsResult.data?.reduce((sum: number, crop: Crop) => sum + crop.area_hectares, 0) || 0;
+      const totalInventory = inventoryResult.data?.reduce((sum: number, item: InventoryItem) => sum + item.quantity_kg, 0) || 0;
 
       const warehouses = warehousesResult.data || [];
-      const totalCapacity = warehouses.reduce((sum, w) => sum + w.capacity_tonnes, 0);
-      const totalUtilization = warehouses.reduce((sum, w) => sum + w.current_utilization_tonnes, 0);
+      const totalCapacity = warehouses.reduce((sum: number, w: Warehouse) => sum + w.capacity_tonnes, 0);
+      const totalUtilization = warehouses.reduce((sum: number, w: Warehouse) => sum + w.current_utilization_tonnes, 0);
 
       const prices = pricesResult.data || [];
       const avgPrice = prices.length > 0
-        ? prices.reduce((sum, p) => sum + p.price_per_kg, 0) / prices.length
+        ? prices.reduce((sum: number, p: Price) => sum + p.price_per_kg, 0) / prices.length
         : 0;
 
       setMetrics({
@@ -95,6 +120,7 @@ export default function AnalyticsView() {
         />
       </div>
 
+      {/* Remaining layout unchanged */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Production Trends</h3>
@@ -164,7 +190,7 @@ export default function AnalyticsView() {
 interface MetricCardProps {
   title: string;
   value: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   trend: number;
   color: 'emerald' | 'blue' | 'amber' | 'purple';
 }
